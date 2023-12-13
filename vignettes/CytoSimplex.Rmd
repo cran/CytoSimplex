@@ -1,0 +1,145 @@
+---
+title: "Simplex Visualization of Cell Fate Similarity in Single-Cell Data"
+author: "Yichen Wang, Jialin Liu"
+date: "2023-05-15"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Simplex Visualization of Cell Fate Similarity in Single-Cell Data}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include=FALSE}
+library(rgl)
+knitr::knit_hooks$set(webgl = hook_webgl)
+knitr::opts_chunk$set(echo = TRUE, fig.align = 'center', message = FALSE)
+```
+
+## Introduction
+
+This package use simplex barycentric coordinate approach to assist exploration in the similarity between single cells between selected cell clusters. We denote a number (2-4) of selected clusters, or groups of clusters, as vertices. We calculate the similarity between each single cell and the average point of each vertex. By normalizing the similarity between each single cell and all specified vertices to a unit sum, we can derive a barycentric coordinate for each single cell. Visualization method for binary (2-ended line), ternary (equilateral triangle) and quaternary (tetrahedron) simplex are developed. The main plotting functions are `plotBinary()`, `plotTernary()` and `plotQuaternary()`, respectively. Please see full argument documentation with `?plotBinary`, `?plotTernary` and `?plotQuaternary`. Here, we show some examples for creating ternary and quaternary plots, which would be useful.
+
+## Example Data
+
+In this vignette, we use data from <a href="https://www.nature.com/articles/s41467-023-38034-2" target="_blank">Matsushita and Liu, *Nat. Comm.* 2023</a>. The application of this method was originally used in this publicaiton as well. From the processed and annotated scRNA-seq data, we took the subset of 50 cells per major cell type from the raw count matrix and cell type annotation. These are embedded within this package.
+
+```{R loadExampleData}
+library(CytoSimplex)
+data("rnaRaw")
+print(paste0("Class of `rnaRaw`: ", class(rnaRaw), ", dimension of `rnaRaw`: ", nrow(rnaRaw), " genes x ", ncol(rnaRaw), " cells"))
+
+data("rnaCluster")
+print(table(rnaCluster))
+```
+
+## Select top features (optional but recommended)
+
+Technically, any forms of feature-by-observation matrix is acceptable for the method we developed, and users are encouraged to explore the usability of our method with other types of data, even not biological. However, single-cell transcriptomics data, as provided, usually is of high dimensionality and contains technical and biological noise. With testing different approaches of reducing the dimensionality and noise, we recommend that users select a number of top differentially expressed genes (DEGs) for each cluster that a vertex represents. 
+
+We implemented a fast Wilcoxon rank-sum test method which can be invoked with function `selectTopFeatures()`. Here, we will choose the top DEGs for Osteoblast cells (`"OS"`), Reticular cells (`"RE"`) and Chondrocytes (`"CH"`), as also shown in the previously mentioned publication. The number of top DEGs for each cluster is set to 30 (`nTop = 30`), thus 90 unique genes are expected to be returned. Alternatively, users can set `returnStats = TRUE` to obtain a table of full Wilcoxon rank-sum test statistics, including the result for all clusters instead of selected vertices.
+
+```{R selectTopGenes}
+vertices <- c("OS", "RE", "CH")
+geneSelect <- selectTopFeatures(rnaRaw, clusterVar = rnaCluster, 
+                                vertices = vertices, nTop = 30)
+head(geneSelect)
+
+stats <- selectTopFeatures(rnaRaw, clusterVar = rnaCluster, 
+                           vertices = vertices, nTop = 30, returnStats = TRUE)
+head(stats)
+```
+
+## Generating ternary plots
+
+`plotTernary()` shows sample similarity in a ternary simplex -- equilateral triangle. The closer a dot, a cell, is to one vertex, the more similar the cell is to the cell cluster(s) the vertex represents. We recommend that users select the top marker genes for each terminal and only use them is the features for calculating the similarity.
+
+```{R plotTernary, fig.height = 4, fig.width = 4}
+vt.tern <- c("OS", "RE", "CH")
+gene.tern <- selectTopFeatures(rnaRaw, clusterVar = rnaCluster, vertices = vt.tern)
+plotTernary(rnaRaw, clusterVar = rnaCluster, vertices = vt.tern, features = gene.tern)
+```
+
+## Adding velocity information to ternary plot
+
+RNA velocity is a quantitative measurement of cellular transitions from single-cell transcriptomics experiments and reveals transient cellular dynamics among a heterogeneous cell population (<a href="https://www.pnas.org/doi/10.1073/pnas.2105859118" target="_blank">Qiao, PNAS 2021</a>). We implemented a velocity visualization strategy that could be applied to ternary and quaternary simplex plot. The velocity information input format must be an N x N graph (sparse matrix, where N denotes number of cells). We have included a graph that matches with the cells in the example dataset in this package. This graph is a subset of the output from <a href="https://github.com/welch-lab/VeloVAE" target="_black">Python module `veloVAE`</a>, as part of the processed data from the publication mentioned at the start. 
+
+```{R loadVelo}
+data("rnaVelo")
+print(paste0("Class of `rnaVelo`: ", class(rnaVelo), 
+             ", dimension of `rnaVelo`: ", nrow(rnaVelo), " x ", ncol(rnaVelo)))
+```
+
+We create a number of square grids in the 2D plain of the ternary simplex (or cube grids in 3D space of the quaternary simplex), and aggregate the cells fall into each grid with taking the mean of velocity towards each of the vertices. Finally, we draw an arrow from the grid center pointing to each vertex with the length representing the aggregated mean velocity. 
+
+```{R ternVelo, fig.width = 4, fig.height = 4}
+plotTernary(rnaRaw, clusterVar = rnaCluster, vertices = vt.tern, 
+            features = gene.tern, veloGraph = rnaVelo)
+```
+
+>The previous two functions mainly depends of `ggplot2`, which is widely used to create figures in R. The binary simplex is plotted normally in ggplot 2D coordinates, while for the ternary simplex, the barycentric coordinate is drawn with 2D segments with cartesian coordinate, instead of implementing a ternary barycentric coordinate system. Users wishing to add customized alteration should pay attention to this.
+
+## Exploration with each cluster
+
+An argument `splitCluster` is supported for all three plotting functions. By setting `splitCluster = TRUE`, A list of plots will be returned, with one containing all cells, and each of the other sub-plots containing only dots (cells) belonging to one cluster in the annotation specified. 
+
+```{R splitCluster, fig.width = 7, fig.height = 7}
+library(patchwork)
+ternList <- plotTernary(rnaRaw, clusterVar = rnaCluster, vertices = vt.tern, 
+                        features = gene.tern, 
+                        byCluster = c("Stem", "RE", "ORT", "OS"))
+print(names(ternList))
+(ternList$Stem + ternList$RE) / (ternList$ORT + ternList$OS)
+```
+
+As can be seen in the subplots, osteoblast-chondrocyte transitional (OCT) stem cells (`"Stem"`) sit closer to osteoblast vertex while do not tend to be extremely close to any vertex as observed in the "OS" and "RE" clusters; reticular cells (`"RE"`) and osteoblast cells (`"OS"`) are gathered towards their corresponding vertices; osteoblast-reticular transitional cells (`"ORT"`) distribute across the vertices for the two cell types. These patterns match with the conclusion in the publication.
+
+Similarly, the velocity layer can also be splitted.
+
+```{R ternVeloSplit, fig.width = 7, fig.height = 7}
+veloSplit <- plotTernary(rnaRaw, clusterVar = rnaCluster, vertices = vt.tern, 
+                         features = gene.tern, veloGraph = rnaVelo, 
+                         byCluster = c("Stem", "RE", "ORT", "OS"))
+(veloSplit$Stem + veloSplit$RE) / (veloSplit$ORT + veloSplit$OS)
+```
+
+As shown in the subplots, the OCT stem cells has the transitional potential towards all three terminal cell types; reticular and osteablast cells are differentiating towards their corresponding cell types; while the ORT cells have the transition potential towards both osteoblast and reticular cell types.
+
+## Create quaternary simplex plot
+
+`plotQuaternary()` shows sample similarity in a quaternary simplex -- tetrahedron. The 3D visualization depends on package `plot3D` for creating static figure, and `rgl` for creating interactive 3D display. (Linux users may refer to [`rgl` documentation](https://dmurdoch.github.io/rgl/#installing-opengl-support) for installation guide) 
+
+For a quaternary simplex, we need one more cluster as a vertex. Here, we add the cells annotated as osteoblast-reticular transition cells (`"ORT"`) into the vertex list. We also add the velocity information in this example, as it will not be shown by default.
+
+```{R plotQuaternary, fig.height = 4, fig.width = 4}
+vt.quat <- c("OS", "RE", "CH", "ORT")
+gene.quat <- selectTopFeatures(rnaRaw, clusterVar = rnaCluster, vertices = vt.quat)
+plotQuaternary(rnaRaw, clusterVar = rnaCluster, vertices = vt.quat, 
+               features = gene.quat, veloGraph = rnaVelo)
+```
+To show a interactive 3D display, users can simply add the argument `interactive = TRUE`.
+
+```{R plotQuaternaryRGL, webgl=TRUE}
+plotQuaternary(rnaRaw, clusterVar = rnaCluster, vertices = vt.quat, 
+               features = gene.quat, veloGraph = rnaVelo, interactive = TRUE)
+```
+
+**↑↑↑Try drag it!**
+
+We have also implemented of GIF image generator that rotates the tetrahedron rounding the z-axis. Note that package `magick` is required for this feature. (<a href="https://cran.r-project.org/package=magick/vignettes/intro.html#Installing_magick" target="_blank">See here for how to install `magick` in detail</a>)
+
+```{R writeGIF, results="hide"}
+writeQuaternaryGIF(rnaRaw, clusterVar = rnaCluster, vertices = vt.quat, 
+                   features = gene.quat, veloGraph = rnaVelo, 
+                   gifPath = "rotating_tetra.gif")
+```
+
+```{R showGIF, echo = FALSE}
+if (!knitr:::is_latex_output()) {
+  knitr::include_graphics("rotating_tetra.gif")
+}
+```
+
+```{R unlinkFile, include=FALSE}
+unlink("rotating_tetra.gif")
+```
+
