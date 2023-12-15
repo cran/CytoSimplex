@@ -59,16 +59,13 @@ plotQuaternary(rnaRaw, clusterVar = rnaCluster, vertices = vt.quat,
 plotQuaternary(rnaRaw, clusterVar = rnaCluster, vertices = vt.quat, 
                features = gene.quat, veloGraph = rnaVelo, interactive = TRUE)
 
-## ----writeGIF, results="hide"-------------------------------------------------
-writeQuaternaryGIF(rnaRaw, clusterVar = rnaCluster, vertices = vt.quat, 
-                   features = gene.quat, veloGraph = rnaVelo, 
-                   gifPath = "rotating_tetra.gif")
+## ----writeGIF, eval=FALSE, results="hide"-------------------------------------
+#  writeQuaternaryGIF(rnaRaw, clusterVar = rnaCluster, vertices = vt.quat,
+#                     features = gene.quat, veloGraph = rnaVelo,
+#                     gifPath = "rotating_tetra.gif")
 
 ## ----showGIF, echo = FALSE----------------------------------------------------
 if (!knitr:::is_latex_output()) {
-  knitr::include_graphics("rotating_tetra.gif")
+  knitr::include_graphics(system.file("figure/rotating_tetra.gif", package = "CytoSimplex"))
 }
-
-## ----unlinkFile, include=FALSE------------------------------------------------
-unlink("rotating_tetra.gif")
 
