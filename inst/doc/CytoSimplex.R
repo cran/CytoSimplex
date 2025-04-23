@@ -1,6 +1,4 @@
 ## ----setup, include=FALSE-----------------------------------------------------
-library(rgl)
-knitr::knit_hooks$set(webgl = hook_webgl)
 knitr::opts_chunk$set(echo = TRUE, fig.align = 'center', message = FALSE)
 
 ## ----loadExampleData----------------------------------------------------------
@@ -21,17 +19,21 @@ stats <- selectTopFeatures(rnaRaw, clusterVar = rnaCluster,
                            vertices = vertices, nTop = 30, returnStats = TRUE)
 head(stats)
 
-## ----plotTernary, fig.height = 4, fig.width = 4-------------------------------
+## ----plotTernary, fig.height = 4, fig.width = 5-------------------------------
 vt.tern <- c("OS", "RE", "CH")
 gene.tern <- selectTopFeatures(rnaRaw, clusterVar = rnaCluster, vertices = vt.tern)
 plotTernary(rnaRaw, clusterVar = rnaCluster, vertices = vt.tern, features = gene.tern)
+
+## ----plotTernaryInteractive, fig.height = 4, fig.width = 5, eval = FALSE------
+# plotTernary(rnaRaw, clusterVar = rnaCluster, vertices = vt.tern, features = gene.tern,
+#             interactive = TRUE)
 
 ## ----loadVelo-----------------------------------------------------------------
 data("rnaVelo")
 print(paste0("Class of `rnaVelo`: ", class(rnaVelo), 
              ", dimension of `rnaVelo`: ", nrow(rnaVelo), " x ", ncol(rnaVelo)))
 
-## ----ternVelo, fig.width = 4, fig.height = 4----------------------------------
+## ----ternVelo, fig.width = 5, fig.height = 4----------------------------------
 plotTernary(rnaRaw, clusterVar = rnaCluster, vertices = vt.tern, 
             features = gene.tern, veloGraph = rnaVelo)
 
@@ -49,23 +51,14 @@ veloSplit <- plotTernary(rnaRaw, clusterVar = rnaCluster, vertices = vt.tern,
                          byCluster = c("Stem", "RE", "ORT", "OS"))
 (veloSplit$Stem + veloSplit$RE) / (veloSplit$ORT + veloSplit$OS)
 
-## ----plotQuaternary, fig.height = 4, fig.width = 4----------------------------
+## ----plotQuaternary, fig.height = 4, fig.width = 6----------------------------
 vt.quat <- c("OS", "RE", "CH", "ORT")
 gene.quat <- selectTopFeatures(rnaRaw, clusterVar = rnaCluster, vertices = vt.quat)
 plotQuaternary(rnaRaw, clusterVar = rnaCluster, vertices = vt.quat, 
-               features = gene.quat, veloGraph = rnaVelo)
-
-## ----plotQuaternaryRGL, webgl=TRUE--------------------------------------------
-plotQuaternary(rnaRaw, clusterVar = rnaCluster, vertices = vt.quat, 
-               features = gene.quat, veloGraph = rnaVelo, interactive = TRUE)
+               features = gene.quat, veloGraph = rnaVelo, interactive = FALSE)
 
 ## ----writeGIF, eval=FALSE, results="hide"-------------------------------------
-#  writeQuaternaryGIF(rnaRaw, clusterVar = rnaCluster, vertices = vt.quat,
-#                     features = gene.quat, veloGraph = rnaVelo,
-#                     gifPath = "rotating_tetra.gif")
-
-## ----showGIF, echo = FALSE----------------------------------------------------
-if (!knitr:::is_latex_output()) {
-  knitr::include_graphics(system.file("figure/rotating_tetra.gif", package = "CytoSimplex"))
-}
+# writeQuaternaryGIF(rnaRaw, clusterVar = rnaCluster, vertices = vt.quat,
+#                    features = gene.quat, veloGraph = rnaVelo,
+#                    width = 8, height = 5, res = 200)
 
